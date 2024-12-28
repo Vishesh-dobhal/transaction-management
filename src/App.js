@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import TaskForm from './comps/TaskForm';
 import TaskList from './comps/TaskList';
-import { collection,  updateDoc, deleteDoc, doc, getDocs } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs } from "firebase/firestore";
 import { db } from "./firebase.js";
 
 export default function App() {
@@ -22,20 +22,16 @@ export default function App() {
     fetchTasks();
   }, []);
 
-
-
-
-  // Update a task in Firestore
-  const updateTask = async (updatedTask) => {
-    try {
-      const taskRef = doc(db, "transactions", updatedTask.id);
-      await updateDoc(taskRef, updatedTask);
-      setTasks(tasks.map(task => task.id === updatedTask.id ? updatedTask : task));
-      setEditingTask(null);
-      window.location.reload();
-    } catch (e) {
-      console.error("Error updating document: ", e);
+  // Handle task submit for both adding and updating tasks
+  const handleTaskSubmit = (submittedTask) => {
+    if (submittedTask.id) {
+      // Update the task in the state
+      setTasks(tasks.map(task => (task.id === submittedTask.id ? submittedTask : task)));
+    } else {
+      // Add the new task to the state
+      setTasks([...tasks, submittedTask]);
     }
+    setEditingTask(null); // Clear the editing state
   };
 
   // Delete a task from Firestore
@@ -59,7 +55,7 @@ export default function App() {
       <div className="col-md-6 offset-md-3">
         <TaskForm
           initialTask={editingTask}
-          updateTask={updateTask}
+          onSubmit={handleTaskSubmit}  // Pass the submit handler
         />
         <TaskList tasks={tasks} onDelete={deleteTask} onEdit={startEditing} />
       </div>

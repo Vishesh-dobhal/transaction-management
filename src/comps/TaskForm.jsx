@@ -1,22 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { collection, addDoc } from "firebase/firestore";
+import { collection, addDoc, updateDoc, doc } from "firebase/firestore";
 import { db } from "../firebase.js";
 
-export default function TaskForm({ onSubmit, initialTask }) {
+export default function TaskForm({ initialTask, onSubmit }) {
   const [type, setType] = useState('');
   const [description, setDescription] = useState('');
-  const [amount, setAmount] = useState(null);
-
-  // Function to add the transaction to Firestore
-  const addTransaction = async (transaction) => {
-    try {
-      const docRef = await addDoc(collection(db, "transactions"), transaction);
-      
-    } catch (e) {
-      console.error("Error adding document: ", e);
-    }
-    window.location.reload();
-  };
+  const [amount, setAmount] = useState('');
 
   // Set the form fields when editing an existing task
   useEffect(() => {
@@ -31,12 +20,11 @@ export default function TaskForm({ onSubmit, initialTask }) {
     }
   }, [initialTask]);
 
-  // Handle the form submit
-  const handleSubmit = (e) => {
+  // Handle the form submission
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (type.trim() && description.trim() && amount) {
-      // Create the transaction object
       const transaction = {
         amount: amount,
         description: description,
@@ -44,13 +32,48 @@ export default function TaskForm({ onSubmit, initialTask }) {
         date: new Date().toISOString(), // Automatically add the date
       };
 
-      // Add the transaction to Firestore
-      addTransaction(transaction);
+      try {
+        if (initialTask) {
+          // If `initialTask` exists, update the task
+          const updatedTask = { ...transaction, id: initialTask.id };
+          await updateTask(updatedTask);
+          onSubmit(updatedTask);  // Pass updated task back to App
+        } else {
+          // Otherwise, add a new transaction
+          const newTask = await addTransaction(transaction);
+          onSubmit(newTask);
+          window.location.reload();
+  // Pass new task back to App
+        }
 
-      // Clear the form fields after submission
-      setType('');
-      setDescription('');
-      setAmount('');
+        // Clear the form fields after submission
+        setType('');
+        setDescription('');
+        setAmount('');
+      } catch (e) {
+        console.error("Error handling form submission: ", e);
+      }
+    }
+  };
+
+  // Add a new transaction to Firestore
+  const addTransaction = async (transaction) => {
+    try {
+      const docRef = await addDoc(collection(db, "transactions"), transaction);
+      return { id: docRef.id, ...transaction }; // Return new task with id
+    } catch (e) {
+      console.error("Error adding document: ", e);
+    }
+  };
+
+  // Update an existing task in Firestore
+  const updateTask = async (updatedTask) => {
+    try {
+      const { id, ...taskWithoutId } = updatedTask; // Remove 'id' from updatedTask
+      const taskRef = doc(db, "transactions", id); // Reference to the document using the 'id'
+      await updateDoc(taskRef, taskWithoutId); // Update only the fields without the 'id'
+    } catch (e) {
+      console.error("Error updating document: ", e);
     }
   };
 
